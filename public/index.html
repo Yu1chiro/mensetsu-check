@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#eef0dc">
+<title>Mensetsu Confidence Training</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{paper:'#f3f0dd',leaf:'#c9dcb5',moss:'#5f8a5b',pine:'#3d5a45',sky:'#cfe4e6',blush:'#f4d6cc',sun:'#f5e3a3',ink:'#37443a',rose:'#c9776d'},fontFamily:{ghibli:['"Zen Maru Gothic"','sans-serif']}}}}</script>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+<style>
+body{font-family:'Zen Maru Gothic',sans-serif;background:#dfe8cc;color:#37443a}
+#app{background:radial-gradient(circle at 90% 0,#cfe4e6 0,transparent 40%),radial-gradient(circle at 0 100%,#f4d6cc88 0,transparent 45%),#f3f0dd}
+.card{background:#fbf9ee;border:1.5px solid #dfe3c6;border-radius:22px 22px 26px 18px}
+.inp{width:100%;background:#fbf9ee;border:1.5px solid #cdd8b6;border-radius:14px;padding:.6rem .8rem;outline:none}
+.inp:focus{border-color:#5f8a5b;box-shadow:0 0 0 3px #c9dcb5}
+.btn{border-radius:999px;padding:.55rem 1.1rem;font-weight:700;transition:transform .15s}
+button{transition:transform .15s,box-shadow .15s,background-color .15s,border-color .15s,filter .15s}
+button:hover{filter:brightness(.96)}
+button[class*="rounded-full"]:not(.btn):hover{transform:scale(1.1)}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 14px #5f8a5b40}
+button.card:hover{transform:translateY(-2px);border-color:#8fb287;box-shadow:0 8px 18px #5f8a5b26}
+div.card:hover{border-color:#b9cba0}
+.inp:hover{border-color:#9fb98f}
+.btn:active,button.card:active{transform:scale(.97)}
+.introjs-tooltip{background:#fbf9ee;color:#37443a;border-radius:22px;font-family:'Zen Maru Gothic',sans-serif;min-width:260px;max-width:88vw}
+.introjs-tooltip-title{color:#3d5a45;font-weight:700}
+.introjs-helperLayer{border-radius:18px;box-shadow:rgba(61,90,69,.55) 0 0 0 5000px!important;background:transparent}
+.introjs-button{background:#5f8a5b;background-image:none;color:#fff;border:0;border-radius:999px;text-shadow:none;padding:.4rem .9rem;font-family:inherit}
+.introjs-button:hover,.introjs-button:focus{background:#3d5a45;color:#fff;box-shadow:none}
+.introjs-prevbutton{background:#c9dcb5;color:#3d5a45}
+.introjs-progress{background:#dfe3c6}.introjs-progressbar{background:#5f8a5b}
+.introjs-arrow{display:none}
+.cb{accent-color:#5f8a5b;width:1.25rem;height:1.25rem;flex:none}
+.pop{animation:pop .18s ease-out}@keyframes pop{from{transform:scale(.94);opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app" class="max-w-md mx-auto min-h-screen relative shadow-2xl">
+  <header class="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-paper/90 backdrop-blur border-b border-leaf">
+    <button id="btnMenu" data-a="menu" aria-label="Menu" class="w-10 h-10 flex-none rounded-full bg-leaf/70 text-pine"><i class="fa-solid fa-bars"></i></button>
+    <button data-a="nav" data-v="home" class="flex-1 min-w-0 flex items-center gap-2 font-bold text-pine text-left"><i class="fa-solid fa-seedling text-moss"></i><span id="ttl" class="truncate">Mensetsu Garden</span></button>
+    <button id="btnHelp" data-a="tour" aria-label="Panduan" class="w-10 h-10 flex-none rounded-full bg-sun/80 text-pine"><i class="fa-solid fa-question"></i></button>
+  </header>
+  <main id="main" class="px-4 py-5 pb-24"></main>
+</div>
+
+<div id="ov" data-a="menu" class="fixed inset-0 bg-pine/40 z-40 hidden"></div>
+<aside id="drawer" class="fixed top-0 left-0 h-full w-72 max-w-[85%] bg-paper z-50 -translate-x-full transition-transform duration-300 overflow-y-auto p-4 border-r-2 border-leaf">
+  <div class="flex justify-between items-center mb-3"><b class="text-pine">Peta Taman</b><button data-a="menu" class="w-9 h-9 rounded-full bg-leaf/70"><i class="fa-solid fa-xmark"></i></button></div>
+  <nav id="navlist" class="space-y-1"></nav>
+</aside>
+
+<div id="toasts" class="fixed top-4 right-4 z-[100] space-y-2 w-72 max-w-[85vw]"></div>
+<div id="modal" class="fixed inset-0 z-[90] hidden items-end sm:items-center justify-center bg-pine/50 p-3"></div>
+<input type="file" id="file" accept="application/json,.json" class="hidden">
+
+<script>
+/* ====== DATA ====== */
+const KEY='mensetsu_garden_v1';
+const DEF={checks:{},warm:[],review:[],sim:[],events:[]};
+let S=load();
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));return d?{...DEF,...d}:structuredClone(DEF)}catch{return structuredClone(DEF)}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch{toast('Gagal menyimpan ke browser','error')}}
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>new Date().toLocaleDateString('sv');
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const fmt=d=>d?new Date(d+'T00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'-';
+
+/* ====== MODUL ====== */
+const ul=a=>'<ul class="space-y-2 mt-2">'+a.map(x=>`<li class="flex gap-2"><i class="fa-solid fa-leaf text-moss mt-1 text-xs"></i><span>${x}</span></li>`).join('')+'</ul>';
+const note=t=>`<div class="mt-3 p-3 rounded-2xl bg-sun/60 text-sm"><i class="fa-regular fa-lightbulb mr-1"></i>${t}</div>`;
+const h=t=>`<h3 class="font-bold text-pine mt-4">${t}</h3>`;
+const jp=(j,r,id)=>`<div class="mt-2 p-3 rounded-2xl bg-sky/70"><div class="text-lg">${j}</div><div class="text-xs mt-1">${r}<br><i>${id}</i></div></div>`;
+const MODS=[
+{id:'m1',ic:'fa-brain',t:'Mindset & Mental Reset',g:'Hilangkan takut dan overthinking, tata ulang pola pikir sebelum berlatih.',
+ b:()=>h('Kenapa orang gagal mensetsu?')+ul(['<b>Fokus hafalan, bukan komunikasi.</b> Lupa satu kata, semuanya buyar. Mensetsu itu obrolan.','<b>Belum terbiasa keigo.</b> Lidah yang tidak dilatih akan berbelit.','<b>Takut salah grammar.</b> HRD Jepang lebih menghargai usaha menyampaikan maksud daripada diam.'])+h('Kesalahan terbesar')+ul(['Eye contact buruk, terlalu sering menunduk.','Suara terlalu pelan. Percaya diri terlihat dari volume.','Senyum hilang karena tegang memikirkan bahasa Jepang.'])+note('<b>Blank?</b> Jangan panik. Tarik napas, lalu pakai kalimat filler natural (lihat Modul 8).'),
+ c:['Saya paham hafalan bukan kunci mensetsu','Saya siap tarik napas saat blank','Saya berkomitmen menjaga senyum, volume, dan eye contact']},
+{id:'m2',ic:'fa-microphone-lines',t:'Warm-up & Latihan',g:'Membiasakan mulut berbicara bahasa Jepang.',tr:'warm',
+ b:()=>`<p class="mt-2">Banyak orang gagal karena jarang ngomong. Fokus pada artikulasi, intonasi, dan volume suara, tidak perlu memikirkan arti dulu.</p>`+note('Lakukan setiap hari, lalu catat di Warm Tracker di bawah.'),
+ c:['Warm-up artikulasi hari ini selesai']},
+{id:'m3',ic:'fa-mirror',t:'Simulasi Cermin',g:'Membangun kesadaran diri sebelum berhadapan dengan HRD.',
+ b:()=>`<p class="mt-2">Kamu harus nyaman melihat dirimu sendiri berbicara.</p>`,
+ c:['Berdiri tegak di depan cermin','Jikoshoukai dalam bahasa Jepang','Menatap mata sendiri saat berbicara','Memeriksa ekspresi wajah, apakah tegang?','Mengulang sampai natural dan rileks']},
+{id:'m4',ic:'fa-video',t:'Record & Review',g:'Video tidak pernah bohong. Lihat dirimu apa adanya.',tr:'review',
+ b:()=>ul(['Taruh HP di meja, kamera depan menghadapmu seperti Zoom.','Rekam dirimu menjawab 3 pertanyaan acak dari Modul 7.','Tonton ulang. Awalnya cringe, tahan saja, itu proses belajar.','Catat kekuranganmu secara objektif.']),
+ c:['Merekam 3 pertanyaan acak','Menonton ulang video','Mencatat kekurangan secara objektif']},
+{id:'m5',ic:'fa-people-arrows',t:'Simulasi dengan Teman',g:'Jembatan menuju kondisi nyata: latih mental menghadapi orang lain.',tr:'sim',
+ b:()=>ul(['Minta teman/mentor jadi interviewer (Zoom atau tatap muka).','Berikan daftar pertanyaan dari Modul 7.','Lakukan secara formal, jangan tertawa atau keluar karakter.','Minta feedback jujur tanpa filter.','Catat masukan teman di tabel di bawah.'])+note('Latihan yang berkeringat membuatmu tidak berdarah di medan perang.'),
+ c:['Menemukan teman/mentor sebagai interviewer','Melakukan simulasi formal','Mencatat feedback teman']},
+{id:'m6',ic:'fa-scroll',t:'Scripting Naskah',g:'Bukan hafalan, tapi struktur berpikir. Hafalkan keywords.',
+ b:()=>h('自己紹介 Perkenalan Diri')+ul(['Salam pembuka','Nama dan asal','Ringkasan latar belakang (kuliah/kerja)','Satu hal menarik tentang dirimu (opsional)','Salam penutup: Yoroshiku onegaishimasu'])+h('志望動機 Alasan Melamar')+ul(['Ketertarikan utama pada perusahaan','Hubungkan pengalaman/skill dengan kebutuhan perusahaan','Visi atau kontribusi yang ingin diberikan'])+h('長所 Kekuatan Diri')+ul(['Sebutkan kelebihan utama','Beri 1 contoh nyata sebagai bukti','Jelaskan manfaatnya bagi perusahaan'])+note('<b>Jika tidak tahu:</b> minta maaf karena belum menguasai area itu, lalu tunjukkan antusiasme untuk mempelajarinya.'),
+ c:['Keywords jikoshoukai tersusun','Keywords shibou douki tersusun','Keywords chousho tersusun']},
+{id:'m7',ic:'fa-circle-question',t:'Common Questions',g:'Pertanyaan wajib mensetsu dan cara menjawabnya.',
+ b:()=>[['自己紹介をお願いします','Melihat impresi pertama, kelancaran, semangat.','Maksimal 1 menit. Cerah, lantang, tersenyum.'],['志望動機を教えてください','Seberapa serius risetmu tentang perusahaan.','Spesifik, sebut hal yang hanya ada di perusahaan itu.'],['長所と短所を教えてください','Self-awareness dan cara mengatasi kekurangan.','Akhiri kelemahan dengan langkah perbaikan yang sedang dilakukan.'],['なぜ日本で働きたいですか？','Memastikan kamu tangguh dan tidak homesick lalu kabur.','Ceritakan pengalaman dengan budaya/sistem kerja Jepang yang membuatmu kagum.'],['これまでの経験について','Relevansi masa lalu dengan pekerjaan.','Gunakan metode STAR (Situation, Task, Action, Result).']].map(q=>`<div class="mt-3 p-3 rounded-2xl bg-white/60 border border-leaf"><div class="font-bold text-pine">${q[0]}</div><div class="text-sm mt-1"><b>Maksud HRD:</b> ${q[1]}</div><div class="text-sm"><b>Kunci:</b> ${q[2]}</div></div>`).join(''),
+ c:['Siap menjawab jikoshoukai','Siap menjawab shibou douki','Siap menjawab chousho dan tansho','Siap menjawab kenapa ingin kerja di Jepang','Siap menjawab pengalaman (STAR)']},
+{id:'m8',ic:'fa-wind',t:'Panic Control',g:'Blank itu manusiawi. Yang membedakan adalah cara recovery.',
+ b:()=>h('1. Pause 3 detik')+`<p class="text-sm mt-1">Jangan langsung menjawab jika ragu. Tarik napas, buang pelan. Hening sejenak lebih baik daripada gagap.</p>`+h('2. Membeli waktu berpikir')+jp('少し考えさせてよろしいでしょうか。','Sukoshi kangaesasete yoroshii deshou ka','Bolehkah saya minta waktu sebentar untuk berpikir?')+h('3. Meminta pengulangan')+jp('申し訳ありません、もう一度お願いできますでしょうか。','Moushiwake arimasen, mou ichido onegai dekimasu deshou ka','Mohon maaf, bisakah Anda mengulanginya?')+note('Jika tidak paham, jangan menebak. Jawaban tidak nyambung lebih buruk.'),
+ c:['Melatih pause 3 detik','Melatih kalimat pembeli waktu','Melatih kalimat meminta pengulangan']},
+{id:'m9',ic:'fa-door-open',t:'Final Simulation',g:'Dari pintu ke pintu. Berpakaian rapi seolah besok hari-H.',
+ b:()=>'',
+ c:['Masuk ruangan: ketuk 3 kali, tunggu "Douzo", tutup pintu perlahan','Salam: berdiri di samping kursi, Yoroshiku onegaishimasu, ojigi 45 derajat','Duduk setelah dipersilakan (Shitsurei shimasu), postur tegak, tangan di paha','Tanya jawab dengan suara lantang dan kontak mata','Closing: berdiri, Arigatou gozaimashita, membungkuk, keluar perlahan']},
+{id:'sp',ic:'fa-star',t:'Confidence Booster',g:'Persiapan mental hari terakhir. Malam sebelumnya, matikan mode belajar.',
+ b:()=>h('Yang tidak boleh dilakukan')+ul(['Begadang menghafal script kata per kata.','Membaca artikel "pertanyaan tersulit" di menit-menit akhir.','Minum kopi berlebihan jika asam lambung mudah naik saat gugup.'])+h('Yang harus dilakukan'),
+ c:['Siapkan pakaian, dokumen, alat tulis malam ini','Tidur minimal 7-8 jam','Visualisasikan masuk ruangan dengan tenang dan tersenyum','Pemanasan suara 30 menit sebelum jadwal']}
+];
+const mp=m=>{const d=m.c.filter((_,i)=>S.checks[m.id+':'+i]).length;return[d,m.c.length]};
+const total=()=>MODS.reduce((a,m)=>{const[d,t]=mp(m);return[a[0]+d,a[1]+t]},[0,0]);
+
+/* ====== KOLEKSI CRUD ====== */
+const opt=a=>a.map(x=>[x,x]);
+const COLS={
+warm:{t:'Warm Tracker',ic:'fa-microphone',f:[['tgl','Tanggal','date',1],['materi','Materi latihan','text',1],['dur','Durasi (menit)','number',1],['mood','Kondisi suara','select',0,opt(['Kaku','Biasa','Lancar','Sangat lancar'])],['cat','Catatan','textarea']],
+ v:i=>[i.materi,`${fmt(i.tgl)} · ${i.dur} mnt · ${i.mood||''}`,i.cat]},
+review:{t:'Review Tracker',ic:'fa-video',f:[['tgl','Tanggal','date',1],['q','Pertanyaan yang direkam','text',1],['skor','Skor diri (1-10)','number',1],['senyum','Senyum','select',0,opt(['Baik','Cukup','Kurang'])],['vol','Volume suara','select',0,opt(['Baik','Cukup','Kurang'])],['eye','Eye contact','select',0,opt(['Baik','Cukup','Kurang'])],['cat','Kekurangan yang ditemukan','textarea']],
+ v:i=>[i.q,`${fmt(i.tgl)} · skor ${i.skor}/10`,`Senyum: ${i.senyum} | Suara: ${i.vol} | Mata: ${i.eye}`+(i.cat?'\n'+i.cat:'')]},
+sim:{t:'Review dari Teman',ic:'fa-user-group',f:[['tgl','Tanggal','date',1],['nama','Nama teman/mentor','text',1],['skor','Skor dari teman (1-10)','number',1],['cat','Feedback','textarea',1]],
+ v:i=>[i.nama,`${fmt(i.tgl)} · skor ${i.skor}/10`,i.cat]},
+events:{t:'Jadwal',ic:'fa-calendar-day',f:[['tgl','Tanggal','date',1],['jam','Jam','time'],['judul','Judul','text',1],['tipe','Jenis','select',0,opt(['Latihan mandiri','Simulasi teman','Record & review','Mensetsu asli','Lainnya'])],['cat','Catatan','textarea']],
+ v:i=>[i.judul,`${fmt(i.tgl)}${i.jam?' · '+i.jam:''} · ${i.tipe||''}`,i.cat]}
+};
+function listHTML(c,filter){
+  const arr=S[c].filter(filter||(()=>true)).sort((a,b)=>b.tgl.localeCompare(a.tgl));
+  if(!arr.length)return `<div class="text-center text-sm py-6 text-ink/60"><i class="fa-solid fa-seedling text-2xl text-moss/60 block mb-2"></i>Belum ada catatan. Tekan Tambah untuk menanam yang pertama.</div>`;
+  return arr.map(i=>{const[a,b,n]=COLS[c].v(i);return `<div class="card p-3 mt-2"><div class="flex justify-between gap-2"><div class="min-w-0"><div class="font-bold text-pine break-words">${esc(a)}</div><div class="text-xs text-ink/70">${esc(b)}</div></div><div class="flex gap-1 flex-none"><button data-a="edit" data-c="${c}" data-id="${i.id}" class="w-8 h-8 rounded-full bg-sun/70" aria-label="Ubah"><i class="fa-solid fa-pen text-xs"></i></button><button data-a="del" data-c="${c}" data-id="${i.id}" class="w-8 h-8 rounded-full bg-blush" aria-label="Hapus"><i class="fa-solid fa-trash text-xs"></i></button></div></div>${n?`<p class="text-sm mt-2 whitespace-pre-line break-words">${esc(n)}</p>`:''}</div>`}).join('');
+}
+function trackerHTML(c){return `<section class="mt-6"><div class="flex justify-between items-center"><h2 class="font-bold text-pine"><i class="fa-solid ${COLS[c].ic} mr-1 text-moss"></i>${COLS[c].t}</h2><button data-a="add" data-c="${c}" class="btn bg-moss text-white text-sm"><i class="fa-solid fa-plus mr-1"></i>Tambah</button></div>${listHTML(c)}</section>`}
+
+/* ====== UI: TOAST, MODAL, CONFIRM ====== */
+function toast(msg,type='success'){
+  const col={success:'bg-moss',error:'bg-rose',info:'bg-pine'}[type],ic={success:'fa-circle-check',error:'fa-circle-exclamation',info:'fa-circle-info'}[type];
+  const d=document.createElement('div');d.className=`pop ${col} text-white rounded-2xl px-4 py-3 shadow-lg flex gap-2 items-start text-sm`;
+  d.innerHTML=`<i class="fa-solid ${ic} mt-0.5"></i><span>${esc(msg)}</span>`;$('#toasts').append(d);
+  setTimeout(()=>{d.style.transition='opacity .3s';d.style.opacity=0;setTimeout(()=>d.remove(),300)},3000);
+}
+function openModal(html){const m=$('#modal');m.innerHTML=`<div class="pop card w-full max-w-md max-h-[90vh] overflow-y-auto p-5 bg-paper">${html}</div>`;m.classList.remove('hidden');m.classList.add('flex')}
+function closeModal(){const m=$('#modal');m.classList.add('hidden');m.classList.remove('flex');m.innerHTML=''}
+let yesFn=null;
+function confirmBox(title,msg,fn,label='Ya, lanjut'){
+  yesFn=fn;openModal(`<div class="text-center"><div class="w-14 h-14 mx-auto rounded-full bg-blush grid place-items-center text-rose text-xl"><i class="fa-solid fa-triangle-exclamation"></i></div><h3 class="font-bold text-pine text-lg mt-3">${esc(title)}</h3><p class="text-sm mt-1">${esc(msg)}</p><div class="flex gap-2 mt-5"><button data-a="close" class="btn flex-1 bg-leaf/70">Batal</button><button data-a="yes" class="btn flex-1 bg-rose text-white">${label}</button></div></div>`);
+}
+function formModal(c,id,preset={}){
+  const C=COLS[c],it=id?S[c].find(x=>x.id===id):preset;
+  const fld=f=>{const[n,l,t,req,o]=f,v=esc(it[n]??(t==='date'?today():''));
+    const inp=t==='textarea'?`<textarea name="${n}" rows="3" class="inp">${v}</textarea>`:t==='select'?`<select name="${n}" class="inp">${o.map(x=>`<option value="${x[0]}" ${it[n]===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select>`:`<input name="${n}" type="${t}" value="${v}" ${t==='number'?'min="0" max="'+(n==='skor'?10:600)+'"':''} class="inp">`;
+    return `<label class="block mt-3 text-sm font-bold">${l}${req?' <span class="text-rose">*</span>':''}${inp.replace('class="inp"','class="inp font-normal mt-1"')}</label>`};
+  openModal(`<h3 class="font-bold text-pine text-lg"><i class="fa-solid ${C.ic} text-moss mr-1"></i>${id?'Ubah':'Tambah'} ${C.t}</h3><div id="fm">${C.f.map(fld).join('')}</div><div class="flex gap-2 mt-5"><button data-a="close" class="btn flex-1 bg-leaf/70">Batal</button><button data-a="save" data-c="${c}" data-id="${id||''}" class="btn flex-1 bg-moss text-white">Simpan</button></div>`);
+}
+function saveForm(c,id){
+  const o={};let bad=null;
+  COLS[c].f.forEach(f=>{const el=$('#fm [name="'+f[0]+'"]');let v=el.value.trim();if(f[3]&&!v&&!bad)bad=f[1];if(f[2]==='number'&&v!=='')v=Number(v);o[f[0]]=v});
+  if(bad)return toast(`${bad} wajib diisi`,'error');
+  if(o.skor!==undefined&&(o.skor<1||o.skor>10))return toast('Skor harus antara 1 dan 10','error');
+  if(id){const i=S[c].findIndex(x=>x.id===id);S[c][i]={...S[c][i],...o}}else S[c].push({id:uid(),...o});
+  save();closeModal();toast(id?'Perubahan disimpan':'Catatan ditambahkan');render();
+}
+
+/* ====== VIEWS ====== */
+let cur='home',cal={y:new Date().getFullYear(),m:new Date().getMonth(),sel:today()},charts=[];
+const NAV=[['home','fa-house','Beranda'],...MODS.map(m=>[m.id,m.ic,m.t]),['calendar','fa-calendar-days','Kalender'],['stats','fa-chart-simple','Statistik'],['backup','fa-box-archive','Backup Data']];
+function buildNav(){$('#navlist').innerHTML=NAV.map(n=>`<button data-a="nav" data-v="${n[0]}" class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-2xl ${cur===n[0]?'bg-leaf font-bold':'hover:bg-leaf/40'}"><i class="fa-solid ${n[1]} w-5 text-moss"></i>${n[2]}</button>`).join('')}
+const bar=(d,t,c='bg-moss')=>`<div class="h-2 rounded-full bg-leaf/60 overflow-hidden"><div class="${c} h-full rounded-full" style="width:${t?d/t*100:0}%"></div></div>`;
+
+function vHome(){
+  const[d,t]=total(),up=S.events.filter(e=>e.tgl>=today()).sort((a,b)=>(a.tgl+(a.jam||'')).localeCompare(b.tgl+(b.jam||'')))[0];
+  return `<div id="tProg" class="card p-5 bg-gradient-to-br from-leaf/70 to-sky/60"><div class="text-sm">面接のこと頑張ってください！</div><h1 class="text-2xl font-bold text-pine mt-1">Latih keberanianmu, bukan hafalanmu.</h1><div class="mt-4 flex justify-between text-sm"><span>Progress latihan</span><b>${d}/${t} (${t?Math.round(d/t*100):0}%)</b></div>${bar(d,t,'bg-pine')}</div>
+  <div id="tUp" class="card p-4 mt-3 flex items-center gap-3"><i class="fa-solid fa-calendar-check text-moss text-xl"></i><div class="text-sm min-w-0">${up?`<b>${esc(up.judul)}</b><br>${fmt(up.tgl)}${up.jam?' · '+up.jam:''}`:'Belum ada jadwal mendatang. <button data-a="nav" data-v="calendar" class="underline text-moss font-bold">Atur jadwal</button>'}</div></div>
+  <h2 class="font-bold text-pine mt-5 mb-2">Modul</h2><div id="tMods" class="space-y-2">${MODS.map((m,i)=>{const[a,b]=mp(m);return `<button data-a="nav" data-v="${m.id}" class="card w-full text-left p-3 flex items-center gap-3"><span class="w-10 h-10 rounded-full grid place-items-center flex-none ${a===b?'bg-moss text-white':'bg-leaf/70 text-pine'}"><i class="fa-solid ${a===b?'fa-check':m.ic}"></i></span><span class="flex-1 min-w-0"><span class="block font-bold text-pine text-sm">${m.id==='sp'?'Special':'Modul '+(i+1)}: ${m.t}</span>${bar(a,b)}</span></button>`}).join('')}</div>`;
+}
+function vMod(id){
+  const i=MODS.findIndex(m=>m.id===id),m=MODS[i],[d,t]=mp(m),p=MODS[i-1],n=MODS[i+1];
+  return `<div class="card p-4 bg-gradient-to-br from-leaf/60 to-paper"><div class="text-xs text-moss font-bold">${m.id==='sp'?'Special Module':'Modul '+(i+1)}</div><h1 class="text-xl font-bold text-pine">${m.t}</h1><p class="text-sm mt-1"><b>Tujuan:</b> ${m.g}</p></div>
+  <div class="mt-2 text-sm">${m.b()}</div>
+  <section class="card p-4 mt-5"><div class="flex justify-between"><h2 class="font-bold text-pine">Checklist</h2><span class="text-sm">${d}/${t}</span></div><div class="mt-2 space-y-1">${m.c.map((x,k)=>`<label class="flex gap-3 items-start p-2 rounded-xl hover:bg-leaf/30 cursor-pointer"><input type="checkbox" class="cb mt-0.5" data-a="chk" data-k="${m.id}:${k}" ${S.checks[m.id+':'+k]?'checked':''}><span class="text-sm ${S.checks[m.id+':'+k]?'line-through opacity-60':''}">${x}</span></label>`).join('')}</div></section>
+  ${m.tr?trackerHTML(m.tr):''}
+  <div class="flex justify-between mt-6 gap-2">${p?`<button data-a="nav" data-v="${p.id}" class="btn bg-leaf/70 text-sm"><i class="fa-solid fa-chevron-left mr-1"></i>Sebelumnya</button>`:'<span></span>'}${n?`<button data-a="nav" data-v="${n.id}" class="btn bg-moss text-white text-sm">Berikutnya<i class="fa-solid fa-chevron-right ml-1"></i></button>`:''}</div>`;
+}
+function vCal(){
+  const{y,m,sel}=cal,first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),pad=x=>String(x).padStart(2,'0');
+  const has=d=>{const k=`${y}-${pad(m+1)}-${pad(d)}`;return[S.events.some(e=>e.tgl===k),S.warm.some(w=>w.tgl===k)]};
+  let cells='<div></div>'.repeat(first);
+  for(let d=1;d<=days;d++){const k=`${y}-${pad(m+1)}-${pad(d)}`,[e,w]=has(d);cells+=`<button data-a="day" data-d="${k}" class="aspect-square rounded-2xl text-sm relative ${k===sel?'bg-moss text-white font-bold':k===today()?'bg-sun/80':'hover:bg-leaf/50'}">${d}<span class="absolute bottom-1 left-0 right-0 flex justify-center gap-0.5">${e?'<i class="w-1.5 h-1.5 rounded-full bg-rose"></i>':''}${w?'<i class="w-1.5 h-1.5 rounded-full bg-sky border border-pine/40"></i>':''}</span></button>`}
+  const nm=new Date(y,m).toLocaleDateString('id-ID',{month:'long',year:'numeric'});
+  return `<h1 class="text-xl font-bold text-pine mb-3">Kalender Latihan</h1><div class="card p-3"><div class="flex justify-between items-center mb-2"><button data-a="mo" data-n="-1" class="w-9 h-9 rounded-full bg-leaf/70"><i class="fa-solid fa-chevron-left"></i></button><b class="text-pine capitalize">${nm}</b><button data-a="mo" data-n="1" class="w-9 h-9 rounded-full bg-leaf/70"><i class="fa-solid fa-chevron-right"></i></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs text-ink/60 mb-1">${['Min','Sen','Sel','Rab','Kam','Jum','Sab'].map(x=>`<div>${x}</div>`).join('')}</div><div class="grid grid-cols-7 gap-1">${cells}</div><div class="text-xs mt-3 flex gap-4"><span><i class="inline-block w-2 h-2 rounded-full bg-rose mr-1"></i>Jadwal</span><span><i class="inline-block w-2 h-2 rounded-full bg-sky border border-pine/40 mr-1"></i>Warm-up</span></div></div>
+  <div class="flex justify-between items-center mt-5"><h2 class="font-bold text-pine">${fmt(sel)}</h2><button data-a="add" data-c="events" data-d="${sel}" class="btn bg-moss text-white text-sm"><i class="fa-solid fa-plus mr-1"></i>Tambah</button></div>${listHTML('events',e=>e.tgl===sel)}
+  ${S.warm.some(w=>w.tgl===sel)?`<h3 class="font-bold text-pine mt-4 text-sm">Warm-up hari ini</h3>${listHTML('warm',w=>w.tgl===sel)}`:''}`;
+}
+function vStats(){
+  const[d,t]=total(),mins=S.warm.reduce((a,w)=>a+(+w.dur||0),0),all=[...S.review,...S.sim],avg=all.length?(all.reduce((a,x)=>a+(+x.skor||0),0)/all.length).toFixed(1):'-';
+  const k=(ic,v,l)=>`<div class="card p-3"><i class="fa-solid ${ic} text-moss"></i><div class="text-2xl font-bold text-pine">${v}</div><div class="text-xs">${l}</div></div>`;
+  return `<h1 class="text-xl font-bold text-pine mb-3">Statistik</h1><div class="grid grid-cols-2 gap-3">${k('fa-list-check',t?Math.round(d/t*100)+'%':'0%','Checklist selesai')}${k('fa-clock',mins,'Menit warm-up')}${k('fa-video',S.review.length,'Sesi record')}${k('fa-star',avg,'Rata-rata skor')}</div>
+  <div class="card p-3 mt-3"><b class="text-pine text-sm">Progress per modul (%)</b><div id="c1"></div></div>
+  <div class="card p-3 mt-3"><b class="text-pine text-sm">Menit warm-up 7 hari terakhir</b><div id="c2"></div></div>
+  <div class="card p-3 mt-3"><b class="text-pine text-sm">Perkembangan skor</b><div id="c3"></div></div>`;
+}
+function drawCharts(){
+  charts.forEach(c=>c.destroy());charts=[];
+  const base={chart:{fontFamily:'Zen Maru Gothic',toolbar:{show:false},background:'transparent'},colors:['#5f8a5b','#c9776d'],grid:{borderColor:'#dfe3c6'},dataLabels:{enabled:false}};
+  const add=(id,o)=>{const c=new ApexCharts($(id),{...base,...o});c.render();charts.push(c)};
+  add('#c1',{chart:{...base.chart,type:'bar',height:300},plotOptions:{bar:{horizontal:true,borderRadius:6,barHeight:'60%'}},series:[{name:'Selesai',data:MODS.map(m=>{const[a,b]=mp(m);return Math.round(a/b*100)})}],xaxis:{categories:MODS.map((m,i)=>m.id==='sp'?'Special':'M'+(i+1)),max:100}});
+  const ds=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return d.toLocaleDateString('sv')});
+  add('#c2',{chart:{...base.chart,type:'bar',height:200},plotOptions:{bar:{borderRadius:6}},series:[{name:'Menit',data:ds.map(d=>S.warm.filter(w=>w.tgl===d).reduce((a,w)=>a+(+w.dur||0),0))}],xaxis:{categories:ds.map(d=>d.slice(8)+'/'+d.slice(5,7))}});
+  const ln=a=>a.slice().sort((x,y)=>x.tgl.localeCompare(y.tgl)).map(x=>({x:x.tgl,y:+x.skor}));
+  add('#c3',{chart:{...base.chart,type:'line',height:220},stroke:{curve:'smooth',width:3},markers:{size:4},series:[{name:'Diri sendiri',data:ln(S.review)},{name:'Teman',data:ln(S.sim)}],xaxis:{type:'category',labels:{formatter:v=>String(v).slice(5)}},yaxis:{min:0,max:10},noData:{text:'Belum ada skor'}});
+}
+function vBackup(){
+  return `<h1 class="text-xl font-bold text-pine mb-3">Backup Data</h1><div class="card p-4 text-sm">Semua progress tersimpan di localStorage browser ini. Ekspor secara berkala agar data tidak hilang jika cache dibersihkan atau berganti perangkat.</div>
+  <button data-a="export" class="btn w-full bg-moss text-white mt-4"><i class="fa-solid fa-file-export mr-2"></i>Export JSON</button>
+  <button data-a="import" class="btn w-full bg-sky text-pine mt-3"><i class="fa-solid fa-file-import mr-2"></i>Import JSON</button>
+  <button data-a="reset" class="btn w-full bg-blush text-rose mt-3"><i class="fa-solid fa-trash-can mr-2"></i>Hapus semua data</button>`;
+}
+function render(){
+  charts.forEach(c=>c.destroy());charts=[];
+  const m=MODS.find(x=>x.id===cur);
+  $('#main').innerHTML=cur==='home'?vHome():m?vMod(cur):cur==='calendar'?vCal():cur==='stats'?vStats():vBackup();
+  $('#ttl').textContent=cur==='home'?'Mensetsu Garden':(NAV.find(n=>n[0]===cur)||[])[2];
+  buildNav();if(cur==='stats')drawCharts();
+}
+const go=v=>{cur=v;toggleMenu(false);render();scrollTo(0,0)};
+function toggleMenu(f){const open=f??$('#drawer').classList.contains('-translate-x-full');$('#drawer').classList.toggle('-translate-x-full',!open);$('#ov').classList.toggle('hidden',!open)}
+
+/* ====== BACKUP ====== */
+function exportJSON(){
+  const b=new Blob([JSON.stringify({app:'mensetsu-garden',version:1,exportedAt:new Date().toISOString(),data:S},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`mensetsu-backup-${today()}.json`;a.click();URL.revokeObjectURL(a.href);toast('Backup berhasil diunduh');
+}
+$('#file').addEventListener('change',e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{
+    const j=JSON.parse(r.result),d=j.data||j;
+    if(!d||typeof d!=='object'||typeof d.checks!=='object')throw 0;
+    ['warm','review','sim','events'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[]});
+    confirmBox('Timpa data saat ini?','Data di browser akan diganti dengan isi file backup ini.',()=>{S={...DEF,...d};save();closeModal();toast('Data berhasil diimpor');render()},'Ya, impor');
+  }catch{toast('File tidak valid. Gunakan file hasil Export JSON.','error')}};
+  r.readAsText(f);
+});
+
+/* ====== EVENTS ====== */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');
+  if(!b){if(e.target.id==='modal')closeModal();return}
+  const a=b.dataset.a,D=b.dataset;
+  if(a==='chk')return;
+  ({nav:()=>go(D.v),menu:()=>toggleMenu(),tour:()=>startTour(),close:closeModal,
+   yes:()=>{const f=yesFn;yesFn=null;f&&f()},
+   add:()=>formModal(D.c,null,D.d?{tgl:D.d}:{}),
+   edit:()=>formModal(D.c,D.id),
+   save:()=>saveForm(D.c,D.id),
+   del:()=>confirmBox('Hapus catatan ini?','Catatan yang dihapus tidak bisa dikembalikan.',()=>{S[D.c]=S[D.c].filter(x=>x.id!==D.id);save();closeModal();toast('Catatan dihapus','info');render()},'Ya, hapus'),
+   day:()=>{cal.sel=D.d;render()},
+   mo:()=>{cal.m+=+D.n;if(cal.m<0){cal.m=11;cal.y--}if(cal.m>11){cal.m=0;cal.y++}render()},
+   export:exportJSON,import:()=>$('#file').click(),
+   reset:()=>confirmBox('Hapus semua data?','Seluruh checklist, catatan, dan jadwal akan dihapus permanen. Ekspor dulu bila perlu.',()=>{S=structuredClone(DEF);save();closeModal();toast('Semua data dihapus','info');go('home')},'Ya, hapus semua')
+  })[a]?.();
+});
+document.addEventListener('change',e=>{
+  const c=e.target.closest('[data-a="chk"]');if(!c)return;
+  S.checks[c.dataset.k]=c.checked;save();
+  const y=scrollY;render();scrollTo(0,y);
+  const m=MODS.find(x=>x.id===cur);if(m&&c.checked&&mp(m)[0]===mp(m)[1])toast(`${m.t} selesai! Kerja bagus.`);
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();toggleMenu(false)}});
+/* ====== PANDUAN (Intro.js) ====== */
+const TKEY='mensetsu_tour_done';
+function tourDone(){try{localStorage.setItem(TKEY,'1')}catch{}}
+function startTour(){
+  if(typeof introJs!=='function')return toast('Panduan gagal dimuat. Periksa koneksi internet.','error');
+  toggleMenu(false);closeModal();if(cur!=='home')go('home');
+  const steps=[
+    {title:'Selamat datang',intro:'Sistem ini melatih keberanianmu untuk mensetsu, langkah demi langkah. Yuk kenalan singkat dulu.'},
+    {element:'#btnMenu',title:'Menu',intro:'Ketuk untuk membuka menu dari kiri: Modul 1-9, Kalender, Statistik, dan Backup Data.'},
+    {element:'#tProg',title:'Progress',intro:'Persentase ini naik setiap kamu mencentang checklist di modul.'},
+    {element:'#tUp',title:'Jadwal terdekat',intro:'Jadwal latihan atau mensetsu yang kamu atur di Kalender tampil di sini.'},
+    {element:'#tMods',title:'Modul latihan',intro:'Ikuti berurutan dari atas. Buka modul, baca isinya, lalu centang checklist yang sudah kamu lakukan.'},
+    {title:'Catatan latihan',intro:'Di Modul 2, 4, dan 5 ada tracker. Tekan Tambah untuk mencatat, ikon pena untuk mengubah, ikon tempat sampah untuk menghapus.'},
+    {title:'Kalender & Statistik',intro:'Atur jadwal latihan di Kalender, lalu pantau perkembangan skor dan menit latihanmu di Statistik.'},
+    {title:'Amankan datamu',intro:'Data tersimpan di browser ini. Buka menu Backup Data dan tekan Export JSON secara rutin, lalu Import JSON untuk memulihkannya.'},
+    {element:'#btnHelp',title:'Butuh panduan lagi?',intro:'Tekan tombol ? kapan saja untuk mengulang panduan ini. Semangat, 頑張って！'}
+  ];
+  setTimeout(()=>introJs().setOptions({steps,nextLabel:'Lanjut',prevLabel:'Kembali',doneLabel:'Selesai',showBullets:false,showProgress:true,exitOnOverlayClick:false,disableInteraction:true,scrollToElement:true}).oncomplete(tourDone).onexit(tourDone).start(),150);
+}
+render();
+try{if(!localStorage.getItem(TKEY))setTimeout(startTour,600)}catch{}
+</script>
+</body>
+</html>
