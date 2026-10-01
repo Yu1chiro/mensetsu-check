@@ -44,7 +44,7 @@ div.card:hover{border-color:#b9cba0}
 <div id="app" class="max-w-md mx-auto min-h-screen relative shadow-2xl">
   <header class="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-paper/90 backdrop-blur border-b border-leaf">
     <button id="btnMenu" data-a="menu" aria-label="Menu" class="w-10 h-10 flex-none rounded-full bg-leaf/70 text-pine"><i class="fa-solid fa-bars"></i></button>
-    <button data-a="nav" data-v="home" class="flex-1 min-w-0 flex items-center gap-2 font-bold text-pine text-left"><i class="fa-solid fa-seedling text-moss"></i><span id="ttl" class="truncate">Mensetsu Garden</span></button>
+    <button data-a="nav" data-v="home" class="flex-1 min-w-0 flex items-center gap-2 font-bold text-pine text-left"><i class="fa-solid fa-seedling text-moss"></i><span id="ttl" class="truncate">Mensetsu Check</span></button>
     <button id="btnHelp" data-a="tour" aria-label="Panduan" class="w-10 h-10 flex-none rounded-full bg-sun/80 text-pine"><i class="fa-solid fa-question"></i></button>
   </header>
   <main id="main" class="px-4 py-5 pb-24"></main>
@@ -219,7 +219,7 @@ function render(){
   charts.forEach(c=>c.destroy());charts=[];
   const m=MODS.find(x=>x.id===cur);
   $('#main').innerHTML=cur==='home'?vHome():m?vMod(cur):cur==='calendar'?vCal():cur==='stats'?vStats():vBackup();
-  $('#ttl').textContent=cur==='home'?'Mensetsu Garden':(NAV.find(n=>n[0]===cur)||[])[2];
+  $('#ttl').textContent=cur==='home'?'Mensetsu Check':(NAV.find(n=>n[0]===cur)||[])[2];
   buildNav();if(cur==='stats')drawCharts();
 }
 const go=v=>{cur=v;toggleMenu(false);render();scrollTo(0,0)};
